@@ -14,7 +14,7 @@
 - [Pré-requisitos](#pré-requisitos-warning)
 - [Como rodar](#como-rodar-ferris_wheel)
 
-## Descriçao :star2:
+## Descrição :star2:
 
 Trabalho realizado para a disciplina de Sistemas Distríbuidos I do Curso Ciência da Computação - IFSUL Campus Passo Fundo
 
