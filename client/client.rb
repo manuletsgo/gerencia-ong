@@ -44,6 +44,7 @@ class Client
             message.add_param :phone, gets.chomp
             puts('Type the name of the animal to adopt:')
             message.add_param :animal_name, gets.chomp
+            puts('Aguardando confirmação...')
 
           elsif operation == 'DOA' or operation == 'MANT'
             puts('Type the value:')

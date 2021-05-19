@@ -11,6 +11,7 @@ class Server
   attr_accessor :clients
   attr_accessor :socket
   attr_accessor :ong
+  attr_accessor :mutex
 
   def initialize(port)
     admin = Client.new 'admin', '123', 'admin'
@@ -19,21 +20,28 @@ class Server
     @clients[protector.username.to_sym] = protector
     @ong = Ong.new
     @socket = TCPServer.open(port)
+    @mutex = Mutex.new
+  end
+
+  def waiting_connections
+    puts('Waiting connections!')
+    @socket.accept
   end
 
   def handle_connection(client)
     begin
-      @context = Context.new(Connected.new, client, self)
+      context = Context.new(Connected.new, client, self)
 
-      while !@context.state.is_a? Exiting do
-        message = Marshal.load(client.recv(1024))
+      while !context.state.is_a? Exiting do
+        message = client.recv(1024)
+        message = Marshal.load(message)
         puts("\n-> Message received: \n#{message}\n")
         operation = message.operation
 
-        if @context.respond_to? operation.downcase
-          @context.send(operation.downcase, message)
+        if context.respond_to? operation.downcase
+          context.send(operation.downcase, message)
         else
-          @context.default(message)
+          context.default(message)
         end
       end
     rescue => e
@@ -49,10 +57,8 @@ begin
   @server = Server.new(33333)
   puts('Server started!')
   loop {
-    puts('Waiting connections!')
-    Thread.start(@server.socket.accept) do |client|
-      @server.handle_connection(client)
-    end
+    conn = @server.waiting_connections
+    Thread.start(conn) { |client| @server.handle_connection(client) }
   }
 rescue => e
   raise e

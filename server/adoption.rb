@@ -6,13 +6,15 @@ class Adoption
   attr_accessor :phone
   attr_accessor :animal
   attr_accessor :status
+  attr_accessor :client
 
-  def initialize(id, name, phone, animal)
+  def initialize(id, name, phone, animal, client)
     @id = id
     @name = name
     @phone = phone
     @animal = animal
     @status = 'pending'
+    @client = client
   end
 
   def to_s

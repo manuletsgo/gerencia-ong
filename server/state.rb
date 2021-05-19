@@ -221,25 +221,34 @@ class Authenticated < State
   def adot(message)
     response = Message.new('ADOTREPLY')
     begin
-      if @context.client.type == 'protector'
-        id = @context.server.ong.adoptions.length
-        name = message.params[:name]
-        phone = message.params[:phone]
-        animal_name = message.params[:animal_name]
-        animal = @context.server.ong.animals[animal_name]
-        if animal
-          adoption = Adoption.new id, name, phone, animal
-          @context.server.ong.adoptions[id] = adoption
-          response.set_status 200
-          response.add_param :res, 'Adoption successfully!'
+      @context.server.mutex.synchronize {
+        if @context.client.type == 'protector'
+          name = message.params[:name]
+          phone = message.params[:phone]
+          animal_name = message.params[:animal_name]
+          animal = @context.server.ong.animals[animal_name]
+          if animal
+            id = @context.server.ong.adoptions.length
+            adoption = Adoption.new id, name, phone, animal, @context.client
+            @context.server.ong.adoptions[id] = adoption
+
+            @context.client.semaphore.wait(@context.server.mutex)
+
+            response.set_status 200
+            if adoption.status == 'approved'
+              response.add_param :res, 'Adoption approved!'
+            elsif adoption.status == 'reproved'
+              response.add_param :res, 'Adoption reproved!'
+            end
+          else
+            response.set_status 400
+            response.add_param :res, 'Animal doesnt exists!'
+          end
         else
-          response.set_status 400
-          response.add_param :res, 'Animal doesnt exists!'
+          response.set_status 401
+          response.add_param :res, "Unauthorized method for #{@context.client.type}!"
         end
-      else
-        response.set_status 401
-        response.add_param :res, "Unauthorized method for #{@context.client.type}!"
-      end
+      }
     rescue => e
       raise e
       response.set_status 500
@@ -276,36 +285,41 @@ class Authenticated < State
   def conf(message)
     response = Message.new('CONFREPLY')
     begin
-      if @context.client.type == 'admin'
-        id = message.params[:id].to_i
-        status = message.params[:status]
-        if @context.server.ong.adoptions[id]
-          if @context.server.ong.adoptions[id].status == 'pending'
-            if status == 'approved'
-              @context.server.ong.adoptions[id].status = status
-              @context.server.ong.animals.delete @context.server.ong.adoptions[id].animal.name
-              response.set_status 200
-              response.add_param :res, 'Adoption approved!'
-            elsif status == 'reproved'
-              @context.server.ong.adoptions[id].status = status
-              response.set_status 200
-              response.add_param :res, 'Adoption reproved!'
+      @context.server.mutex.synchronize {
+        if @context.client.type == 'admin'
+          id = message.params[:id].to_i
+          status = message.params[:status]
+          adoption = @context.server.ong.adoptions[id]
+          if adoption
+            if adoption.status == 'pending'
+              if status == 'approved'
+                adoption.status = status
+                @context.server.ong.animals.delete adoption.animal.name
+                response.set_status 200
+                response.add_param :res, 'Adoption approved!'
+                adoption.client.semaphore.signal
+              elsif status == 'reproved'
+                adoption.status = status
+                response.set_status 200
+                response.add_param :res, 'Adoption reproved!'
+                adoption.client.semaphore.signal
+              else
+                response.set_status 400
+                response.add_param :res, 'Invalid status!'
+              end
             else
               response.set_status 400
-              response.add_param :res, 'Invalid status!'
+              response.add_param :res, 'Status from this adoption is not pending!'
             end
           else
             response.set_status 400
-            response.add_param :res, 'Status from this adoption is not pending!'
+            response.add_param :res, 'Invalid adoption id!'
           end
         else
-          response.set_status 400
-          response.add_param :res, 'Invalid adoption id!'
+          response.set_status 401
+          response.add_param :res, "Unauthorized method for #{@context.client.type}!"
         end
-      else
-        response.set_status 401
-        response.add_param :res, "Unauthorized method for #{@context.client.type}!"
-      end
+      }
     rescue => e
       raise e
       response.set_status 500
