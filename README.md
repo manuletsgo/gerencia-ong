@@ -10,8 +10,8 @@
 
 ## Tópicos :round_pushpin:
 
-- [Descriçao](#descrição)
-- [Pré-requisitos](#pré-requisitos-sparkles)
+- [Descriçao](#descrição-star2)
+- [Pré-requisitos](#pré-requisitos-warning)
 - [Como rodar](#como-rodar-ferris_wheel)
 
 ## Descriçao :star2:
